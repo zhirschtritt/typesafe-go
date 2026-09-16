@@ -78,6 +78,10 @@ Validate questions before sending them: empty or invalid question definitions, i
 
 The decoder accepts additive JSON fields. If the service returns an answer type newer than this SDK, it is preserved as `*typesafe.UnknownAnswer` with its raw JSON rather than discarded. Handle it explicitly when consuming evolving API responses.
 
+## Future improvements
+
+- When Go 1.27 is an acceptable minimum version, use generic concrete methods for `Client.SystemOne` and generic question constructors. This will preserve each call's concrete state and instruction types until JSON encoding while allowing one client to accept different types across calls. JSON compatibility will still require runtime validation because an `any` constraint cannot exclude values unsupported by `encoding/json`.
+
 ## References
 
 - [TypeSafe documentation](https://docs.typesafe.ai/)
