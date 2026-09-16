@@ -1,0 +1,90 @@
+# TypeSafe Go SDK
+
+An **unofficial community SDK** for the [TypeSafe](https://www.typesafe.ai/) v1 API. It provides a small, dependency-free Go client for System One and model discovery.
+
+> This project is not affiliated with or endorsed by TypeSafe.
+
+## Install
+
+```sh
+go get github.com/zhirschtritt/typesafe-go
+```
+
+Requires Go 1.23 or later.
+
+## Quickstart
+
+Set an API key, then ask related questions in one System One request:
+
+```go
+client, err := typesafe.NewClient()
+if err != nil {
+	log.Fatal(err)
+}
+
+response, err := client.SystemOne(ctx,
+	map[string]any{
+		"draft": "Ship the migration on Friday.",
+		"author": "Avery",
+	},
+	map[string]typesafe.Question{
+		"safe": typesafe.Noul("Decide whether the draft is safe to send.", nil),
+		"audience": typesafe.Choice(
+			"Identify the best audience.",
+			map[string]typesafe.Entry{
+				"engineering": "Technical stakeholders",
+				"customers":   "External customers",
+			},
+		),
+		"confidence": typesafe.Score(
+			"Score confidence that Friday is achievable.",
+			"Low confidence", "High confidence",
+		),
+	},
+)
+if err != nil {
+	log.Fatal(err)
+}
+
+safe, _ := response.NoulAnswer("safe")
+audience, _ := response.ChoiceAnswer("audience")
+confidence, _ := response.ScoreAnswer("confidence")
+fmt.Println(safe, audience, confidence, response.RequestID)
+```
+
+`SystemOne` batches all questions over the same state. Keep the shared state and instructions focused: TypeSafe recommends a **32k-token shared budget** across the request. Put common context in `state`; reserve each question for its distinct judgment.
+
+## Configuration
+
+`NewClient()` reads these environment variables:
+
+| Variable | Purpose |
+| --- | --- |
+| `TYPESAFE_API_KEY` | API key (required unless supplied with a client option) |
+| `TYPESAFE_BASE_URL` | API base URL override |
+| `TYPESAFE_DEFAULT_MODEL` | Default model override |
+
+Use client options to configure a key, base URL, default model, retry behavior, HTTP transport, and maximum response size. Request options can override request-scoped settings such as the model without mutating the client.
+
+Calls are context-first. Canceling the supplied `context.Context` stops a request and prevents retries.
+
+## Retries and errors
+
+Transient failures are retried according to the configured retry policy. The client honors server `Retry-After` responses and never retries a canceled context. Every successful response exposes `RequestID`; typed HTTP errors include the response status, headers, request ID, and bounded response body for diagnostics.
+
+Validate questions before sending them: empty or invalid question definitions, invalid state, and invalid client or request options return an error locally.
+
+## Forward compatibility
+
+The decoder accepts additive JSON fields. If the service returns an answer type newer than this SDK, it is preserved as `*typesafe.UnknownAnswer` with its raw JSON rather than discarded. Handle it explicitly when consuming evolving API responses.
+
+## References
+
+- [TypeSafe documentation](https://docs.typesafe.ai/)
+- [Official JavaScript SDK](https://github.com/typesafe-ai/typesafe-sdk-js)
+- [Official Python SDK](https://github.com/typesafe-ai/typesafe-sdk-python)
+- [TypeSafe OpenAPI specification](https://api.typesafe.ai/openapi.json)
+
+## License
+
+[MIT](LICENSE)
