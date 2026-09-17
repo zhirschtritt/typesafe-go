@@ -6,7 +6,7 @@ message_file=${1:?commit message file is required}
 subject=$(sed -n '1p' "$message_file")
 
 case "$subject" in
-  "Merge "*|"Revert "*|"fixup! "*|"squash! ")
+  "Merge "*|"Revert "*|"fixup! "*|"squash! "*)
     exit 0
     ;;
 esac

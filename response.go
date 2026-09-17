@@ -8,7 +8,7 @@ import (
 	"strconv"
 )
 
-// Answer is a typed System One answer.
+// Answer is a typed System One answer. Decoded responses contain pointers to the concrete answer types.
 type Answer interface {
 	AnswerType() string
 }

@@ -51,7 +51,7 @@ confidence, _ := response.ScoreAnswer("confidence")
 fmt.Println(safe, audience, confidence, response.RequestID)
 ```
 
-`SystemOne` batches all questions over the same state. Keep the shared state and instructions focused: TypeSafe recommends a **32k-token shared budget** across the request. Put common context in `state`; reserve each question for its distinct judgment.
+`SystemOne` batches all questions over the same state. Keep shared state and instructions focused. Put common context in `state`; reserve each question for its distinct judgment.
 
 ## Configuration
 
@@ -82,14 +82,7 @@ Releases use [Semantic Versioning](https://semver.org/) and are prepared from [C
 - A `!` after the type or scope, such as `feat!:` or `feat(api)!:`, produces a major release. A `BREAKING CHANGE:` footer has the same effect.
 - Other commit types do not produce a release by themselves.
 
-Local commit-message validation is provided by [Lefthook](https://lefthook.dev/). Install Lefthook 2.1.14 or later, then enable the repository hooks once:
-
-```sh
-brew install lefthook
-lefthook install
-```
-
-The `commit-msg` hook rejects messages that do not follow the supported Conventional Commit shape. Hooks are a local guardrail; protected-branch review remains the enforcement boundary for commits created outside an installed checkout.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for local setup, validation commands, and the Conventional Commit format used by the release workflow.
 
 After CI passes on `main`, Release Please opens or updates a release pull request. Merging that pull request creates the `vX.Y.Z` tag and GitHub Release. Release notes are derived from the commits; the repository does not maintain a changelog file. The release pull request also updates `Version`, which is sent in SDK request headers.
 
@@ -107,6 +100,8 @@ The decoder accepts additive JSON fields. If the service returns an answer type 
 - [Official JavaScript SDK](https://github.com/typesafe-ai/typesafe-sdk-js)
 - [Official Python SDK](https://github.com/typesafe-ai/typesafe-sdk-python)
 - [TypeSafe OpenAPI specification](https://api.typesafe.ai/openapi.json)
+
+Security issues should be reported privately as described in [SECURITY.md](SECURITY.md).
 
 ## License
 

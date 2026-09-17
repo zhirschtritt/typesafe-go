@@ -21,7 +21,7 @@ const (
 	Version = "0.1.0" // x-release-please-version
 )
 
-// Client communicates with the TypeSafe v1 API. The caller retains ownership of its HTTP client.
+// Client communicates with the TypeSafe v1 API. A Client is safe for concurrent use. The caller retains ownership of its HTTP client.
 type Client struct {
 	apiKey       string
 	baseURL      string
@@ -146,7 +146,7 @@ func WithRetryPolicy(policy RetryPolicy) Option {
 	}
 }
 
-// WithHeaders adds headers to every request. Protected TypeSafe headers cannot be overridden.
+// WithHeaders sets headers sent with every request. A later WithHeaders option replaces an earlier one. Protected TypeSafe headers cannot be overridden.
 func WithHeaders(headers http.Header) Option {
 	return func(config *clientConfig) error {
 		if headers == nil {
@@ -202,7 +202,7 @@ func WithRequestRetryPolicy(policy RetryPolicy) RequestOption {
 	}
 }
 
-// WithRequestHeaders adds headers to one API call. Protected TypeSafe headers cannot be overridden.
+// WithRequestHeaders sets headers sent with one API call. A later WithRequestHeaders option replaces an earlier one. Protected TypeSafe headers cannot be overridden.
 func WithRequestHeaders(headers http.Header) RequestOption {
 	return func(config *requestConfig) error {
 		if headers == nil {

@@ -7,7 +7,12 @@
       "include-v-in-tag": true,
       "include-component-in-tag": false,
       "skip-changelog": true,
-      "version-file": "client.go",
+      "extra-files": [
+        {
+          "type": "generic",
+          "path": "client.go"
+        }
+      ],
       "initial-version": "0.1.0"
     }
   }
