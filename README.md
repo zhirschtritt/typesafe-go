@@ -1,5 +1,4 @@
 # TypeSafe Go SDK
-
 An **unofficial community SDK** for the [TypeSafe](https://www.typesafe.ai/) v1 API. It provides a small, dependency-free Go client for System One and model discovery.
 
 > This project is not affiliated with or endorsed by TypeSafe.

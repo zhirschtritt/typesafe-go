@@ -32,7 +32,6 @@ jobs:
           go-version: ${{ matrix.go-version }}
       - name: Run tests
         run: go test ./...
-
   analyze:
     name: Vet and race detection
     runs-on: ubuntu-latest
