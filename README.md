@@ -13,8 +13,6 @@ Requires Go 1.23 or later.
 
 ## Quickstart
 
-Set `TYPESAFE_API_KEY`, then ask related questions in one System One request:
-
 ```go
 package main
 
@@ -60,11 +58,7 @@ func main() {
 }
 ```
 
-`SystemOne` batches all questions over the same state. Keep shared state and instructions focused. Put common context in `state`; reserve each question for its distinct judgment.
-
 ## Configuration
-
-`NewClient()` reads these environment variables:
 
 | Variable | Purpose |
 | --- | --- |
@@ -74,13 +68,9 @@ func main() {
 
 Use client options to configure a key, base URL, default model, retry behavior, HTTP transport, and maximum response size. Request options can override request-scoped settings such as the model without mutating the client.
 
-Calls are context-first. Canceling the supplied `context.Context` stops a request and prevents retries.
-
 ## Retries and errors
 
 Transient failures are retried according to the configured retry policy. The client honors server `Retry-After` responses and never retries a canceled context. Every successful response exposes `RequestID`; typed HTTP errors include the response status, headers, request ID, and bounded response body for diagnostics.
-
-Validate questions before sending them: empty or invalid question definitions, invalid state, and invalid client or request options return an error locally.
 
 ## Releases
 
