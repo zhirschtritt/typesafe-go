@@ -3,6 +3,7 @@ package typesafe_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -71,7 +72,7 @@ func TestSystemOneDecodesMixedAnswersAndUnknownForwardType(t *testing.T) {
 	defer server.Close()
 	client := mustClient(t, typesafe.WithBaseURL(server.URL))
 	response, err := client.SystemOne(context.Background(), "state", map[string]typesafe.Question{
-		"safe": typesafe.Noul("safe?", nil), "team": typesafe.Choice("team?", map[string]typesafe.Entry{"technical": nil}), "severity": typesafe.Score("severity?", "Low", "High"), "future": typesafe.Noul("future?", nil),
+		"safe": typesafe.Noul("safe?", nil), "team": typesafe.Choice("team?", map[string]typesafe.Entry{"billing": nil, "technical": nil}), "severity": typesafe.Score("severity?", "Low", "Medium", "High"), "future": typesafe.Noul("future?", nil),
 	})
 	if err != nil {
 		t.Fatalf("SystemOne() error = %v", err)
@@ -176,12 +177,80 @@ func TestSystemOneReturnsBoundedTypedHTTPErrorAndRejectsInvalidInput(t *testing.
 	if err == nil {
 		t.Error("SystemOne(nil state) error = nil")
 	}
+	_, err = client.SystemOne(context.Background(), 42, map[string]typesafe.Question{"ready": typesafe.Noul("ready?", nil)})
+	if err == nil {
+		t.Error("SystemOne(number state) error = nil")
+	}
+	_, err = client.SystemOne(context.Background(), "state", map[string]typesafe.Question{"ready": typesafe.Noul(true, nil)})
+	if err == nil {
+		t.Error("SystemOne(boolean instructions) error = nil")
+	}
+	choiceCriteria := make(map[string]typesafe.Entry, 256)
+	for index := range 256 {
+		choiceCriteria[fmt.Sprint(index)] = nil
+	}
+	_, err = client.SystemOne(context.Background(), "state", map[string]typesafe.Question{"choice": typesafe.Choice("pick", choiceCriteria)})
+	if err == nil {
+		t.Error("SystemOne(256 choice options) error = nil")
+	}
+	_, err = client.SystemOne(context.Background(), "state", map[string]typesafe.Question{"score": typesafe.Score("rate", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10")})
+	if err == nil {
+		t.Error("SystemOne(11 score levels) error = nil")
+	}
 	if _, err := typesafe.NewClient(typesafe.WithAPIKey("key"), typesafe.WithResponseBodyLimit(0)); err == nil {
 		t.Error("NewClient(invalid body limit) error = nil")
 	}
 	_, err = client.SystemOne(context.Background(), "state", map[string]typesafe.Question{"ready": typesafe.Noul("ready?", nil)}, typesafe.WithModel(""))
 	if err == nil {
 		t.Error("SystemOne(empty model) error = nil")
+	}
+}
+
+func TestSystemOneRejectsResponsesThatContradictQuestions(t *testing.T) {
+	tests := []struct {
+		name      string
+		questions map[string]typesafe.Question
+		response  string
+	}{
+		{
+			name:      "missing answer",
+			questions: map[string]typesafe.Question{"ready": typesafe.Noul("ready?", nil)},
+			response:  `{"model":"jev-latest","answers":{},"usage":{"input_tokens":1,"output_tokens":1}}`,
+		},
+		{
+			name:      "wrong answer type",
+			questions: map[string]typesafe.Question{"ready": typesafe.Noul("ready?", nil)},
+			response:  `{"model":"jev-latest","answers":{"ready":{"type":"choice","choice":"yes","confidence":1,"probabilities":{"yes":1}}},"usage":{"input_tokens":1,"output_tokens":1}}`,
+		},
+		{
+			name:      "unknown choice option",
+			questions: map[string]typesafe.Question{"team": typesafe.Choice("team?", map[string]typesafe.Entry{"billing": nil, "technical": nil})},
+			response:  `{"model":"jev-latest","answers":{"team":{"type":"choice","choice":"sales","confidence":1,"probabilities":{"billing":0,"sales":1}}},"usage":{"input_tokens":1,"output_tokens":1}}`,
+		},
+		{
+			name:      "invalid probability sum",
+			questions: map[string]typesafe.Question{"team": typesafe.Choice("team?", map[string]typesafe.Entry{"billing": nil, "technical": nil})},
+			response:  `{"model":"jev-latest","answers":{"team":{"type":"choice","choice":"billing","confidence":1,"probabilities":{"billing":0.8,"technical":0.1}}},"usage":{"input_tokens":1,"output_tokens":1}}`,
+		},
+		{
+			name:      "inconsistent score mean",
+			questions: map[string]typesafe.Question{"severity": typesafe.Score("severity?", "low", "high")},
+			response:  `{"model":"jev-latest","answers":{"severity":{"type":"score","score":0.9,"confidence":1,"legend":{"0":"low","1":"high"},"probabilities":{"0":0.9,"1":0.1}}},"usage":{"input_tokens":1,"output_tokens":1}}`,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("X-TypeSafe-Request-ID", "req_invalid")
+				_, _ = io.WriteString(w, test.response)
+			}))
+			defer server.Close()
+			_, err := mustClient(t, typesafe.WithBaseURL(server.URL)).SystemOne(context.Background(), "state", test.questions)
+			var validation *typesafe.ResponseValidationError
+			if !errors.As(err, &validation) || validation.RequestID != "req_invalid" || len(validation.Body) == 0 {
+				t.Fatalf("SystemOne() error = %#v, want response validation error with request context", err)
+			}
+		})
 	}
 }
 

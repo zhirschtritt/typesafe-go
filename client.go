@@ -215,8 +215,8 @@ func WithRequestHeaders(headers http.Header) RequestOption {
 
 // SystemOne answers named questions about state using a TypeSafe model.
 func (c *Client) SystemOne(ctx context.Context, state Entry, questions map[string]Question, opts ...RequestOption) (*Response, error) {
-	if state == nil {
-		return nil, &TypeSafeError{Message: "typesafe: state must not be nil"}
+	if err := validateInputEntry(state, false); err != nil {
+		return nil, &TypeSafeError{Message: "typesafe: state " + err.Error()}
 	}
 	if err := validateQuestions(questions); err != nil {
 		return nil, err
@@ -239,6 +239,10 @@ func (c *Client) SystemOne(ctx context.Context, state Entry, questions map[strin
 		return nil, err
 	}
 	response.RequestID = requestID
+	if err := validateResponseForQuestions(&response, questions); err != nil {
+		return nil, &ResponseValidationError{RequestID: requestID, Body: bytes.Clone(response.raw), Err: err}
+	}
+	response.raw = nil
 	return &response, nil
 }
 
