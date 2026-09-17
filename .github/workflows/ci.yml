@@ -31,7 +31,13 @@ jobs:
         with:
           go-version: ${{ matrix.go-version }}
       - name: Run tests
+        if: matrix.go-version != 'stable'
         run: go test ./...
+      - name: Run tests with coverage
+        if: matrix.go-version == 'stable'
+        run: |
+          go test -covermode=atomic -coverprofile=coverage.out ./...
+          go tool cover -func=coverage.out | awk '/^total:/ { coverage = $3 + 0; if (coverage < 85) { printf "coverage %.1f%% is below 85%%\n", coverage; exit 1 } }'
   analyze:
     name: Vet and race detection
     runs-on: ubuntu-latest
