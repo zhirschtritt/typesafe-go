@@ -1,4 +1,3 @@
-// Package typesafe is an unofficial community Go SDK for the TypeSafe API.
 package typesafe
 
 // Entry is a JSON-compatible value accepted in TypeSafe state and question
