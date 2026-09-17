@@ -18,7 +18,7 @@ const (
 	defaultBaseURL = "https://api.typesafe.ai"
 	defaultModel   = "jev-latest"
 	// Version identifies this SDK in TypeSafe API requests.
-	Version = "0.1.0" // x-release-please-version
+	Version = "0.1.1" // x-release-please-version
 )
 
 // Client communicates with the TypeSafe v1 API. A Client is safe for concurrent use. The caller retains ownership of its HTTP client.
