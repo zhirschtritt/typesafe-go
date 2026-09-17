@@ -1,7 +1,6 @@
 package typesafe
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"reflect"
@@ -152,16 +151,34 @@ func validateQuestions(questions map[string]Question) error {
 }
 
 func validateInputEntry(value Entry, allowNull bool) error {
-	encoded, err := json.Marshal(value)
-	if err != nil {
-		return fmt.Errorf("must be JSON-compatible: %w", err)
+	typeOf := reflect.TypeOf(value)
+	valueOf := reflect.ValueOf(value)
+	for typeOf != nil && (typeOf.Kind() == reflect.Interface || typeOf.Kind() == reflect.Pointer) {
+		if valueOf.IsNil() {
+			if allowNull {
+				return nil
+			}
+			return fmt.Errorf("must be a JSON-compatible string, object, or array")
+		}
+		valueOf = valueOf.Elem()
+		typeOf = valueOf.Type()
 	}
-	encoded = bytes.TrimSpace(encoded)
-	if allowNull && bytes.Equal(encoded, []byte("null")) {
-		return nil
-	}
-	if len(encoded) == 0 || (encoded[0] != '"' && encoded[0] != '{' && encoded[0] != '[') {
+	if typeOf == nil {
+		if allowNull {
+			return nil
+		}
 		return fmt.Errorf("must be a JSON-compatible string, object, or array")
 	}
-	return nil
+	if (typeOf.Kind() == reflect.Map || typeOf.Kind() == reflect.Slice) && valueOf.IsNil() {
+		if allowNull {
+			return nil
+		}
+		return fmt.Errorf("must be a JSON-compatible string, object, or array")
+	}
+	switch typeOf.Kind() {
+	case reflect.String, reflect.Struct, reflect.Map, reflect.Slice, reflect.Array:
+		return nil
+	default:
+		return fmt.Errorf("must be a JSON-compatible string, object, or array")
+	}
 }

@@ -242,6 +242,7 @@ func (c *Client) SystemOne(ctx context.Context, state Entry, questions map[strin
 	if err := validateResponseForQuestions(&response, questions); err != nil {
 		return nil, &ResponseValidationError{RequestID: requestID, Body: bytes.Clone(response.raw), Err: err}
 	}
+	response.raw = nil
 	return &response, nil
 }
 

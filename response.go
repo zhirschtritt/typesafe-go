@@ -120,35 +120,30 @@ func (r *Response) UnknownAnswer(id string) (*UnknownAnswer, bool) {
 // UnmarshalJSON decodes a System One response and its discriminated answers.
 func (r *Response) UnmarshalJSON(data []byte) error {
 	var wire struct {
-		Model   json.RawMessage            `json:"model"`
+		Model   *string                    `json:"model"`
 		Answers map[string]json.RawMessage `json:"answers"`
-		Usage   json.RawMessage            `json:"usage"`
+		Usage   *struct {
+			InputTokens  *int `json:"input_tokens"`
+			OutputTokens *int `json:"output_tokens"`
+		} `json:"usage"`
 	}
 	if err := json.Unmarshal(data, &wire); err != nil {
 		return fmt.Errorf("typesafe: decode response: %w", err)
 	}
-	if missingJSONField(wire.Model) {
-		return fmt.Errorf("typesafe: response missing required field model")
-	}
-	if err := json.Unmarshal(wire.Model, &r.Model); err != nil || r.Model == "" {
+	if wire.Model == nil || *wire.Model == "" {
 		return fmt.Errorf("typesafe: response model must be a non-empty string")
 	}
 	if wire.Answers == nil {
 		return fmt.Errorf("typesafe: response missing required field answers")
 	}
-	if missingJSONField(wire.Usage) {
-		return fmt.Errorf("typesafe: response missing required field usage")
-	}
-	var usageFields map[string]json.RawMessage
-	if err := json.Unmarshal(wire.Usage, &usageFields); err != nil {
-		return fmt.Errorf("typesafe: decode response usage: %w", err)
-	}
-	if missingJSONField(usageFields["input_tokens"]) || missingJSONField(usageFields["output_tokens"]) {
+	if wire.Usage == nil || wire.Usage.InputTokens == nil || wire.Usage.OutputTokens == nil {
 		return fmt.Errorf("typesafe: response usage is missing required token counts")
 	}
-	if err := json.Unmarshal(wire.Usage, &r.Usage); err != nil || r.Usage.InputTokens < 0 || r.Usage.OutputTokens < 0 {
+	if *wire.Usage.InputTokens < 0 || *wire.Usage.OutputTokens < 0 {
 		return fmt.Errorf("typesafe: response usage must contain non-negative token counts")
 	}
+	r.Model = *wire.Model
+	r.Usage = Usage{InputTokens: *wire.Usage.InputTokens, OutputTokens: *wire.Usage.OutputTokens}
 
 	answers := make(map[string]Answer, len(wire.Answers))
 	for id, raw := range wire.Answers {
@@ -159,96 +154,93 @@ func (r *Response) UnmarshalJSON(data []byte) error {
 		answers[id] = answer
 	}
 	r.Answers = answers
-	r.raw = bytes.Clone(data)
+	r.raw = data
 	return nil
 }
 
 // DecodeAnswer decodes one answer selected by its type discriminator.
 func DecodeAnswer(data []byte) (Answer, error) {
-	var discriminator struct {
-		Type json.RawMessage `json:"type"`
+	var wire struct {
+		Type          string             `json:"type"`
+		Noul          *float64           `json:"noul"`
+		Choice        *string            `json:"choice"`
+		Score         *float64           `json:"score"`
+		Confidence    *float64           `json:"confidence"`
+		Legend        map[string]Entry   `json:"legend"`
+		Probabilities map[string]float64 `json:"probabilities"`
 	}
-	if err := json.Unmarshal(data, &discriminator); err != nil {
+	if err := json.Unmarshal(data, &wire); err != nil {
 		return nil, fmt.Errorf("decode answer: %w", err)
 	}
-	if missingJSONField(discriminator.Type) {
-		return nil, fmt.Errorf("answer missing required field type")
-	}
-	var answerType string
-	if err := json.Unmarshal(discriminator.Type, &answerType); err != nil || answerType == "" {
+	if wire.Type == "" {
 		return nil, fmt.Errorf("answer type must be a non-empty string")
 	}
 
-	switch answerType {
+	switch wire.Type {
 	case "noul":
-		var answer NoulAnswer
-		if err := decodeRequiredAnswer(data, &answer, "noul"); err != nil {
-			return nil, err
+		if wire.Noul == nil {
+			return nil, fmt.Errorf("answer missing required field noul")
 		}
-		if !unitInterval(answer.Noul) {
+		if !unitInterval(*wire.Noul) {
 			return nil, fmt.Errorf("noul must be between 0 and 1")
 		}
-		return &answer, nil
+		return &NoulAnswer{Type: wire.Type, Noul: *wire.Noul}, nil
 	case "choice":
-		var answer ChoiceAnswer
-		if err := decodeRequiredAnswer(data, &answer, "choice", "confidence", "probabilities"); err != nil {
-			return nil, err
+		if wire.Choice == nil {
+			return nil, fmt.Errorf("answer missing required field choice")
 		}
-		if answer.Choice == "" {
+		if wire.Confidence == nil {
+			return nil, fmt.Errorf("answer missing required field confidence")
+		}
+		if wire.Probabilities == nil {
+			return nil, fmt.Errorf("answer missing required field probabilities")
+		}
+		if *wire.Choice == "" {
 			return nil, fmt.Errorf("choice must be a non-empty string")
 		}
-		if !unitInterval(answer.Confidence) {
+		if !unitInterval(*wire.Confidence) {
 			return nil, fmt.Errorf("confidence must be between 0 and 1")
 		}
-		if _, ok := answer.Probabilities[answer.Choice]; !ok {
-			return nil, fmt.Errorf("choice %q is missing from probabilities", answer.Choice)
+		if _, ok := wire.Probabilities[*wire.Choice]; !ok {
+			return nil, fmt.Errorf("choice %q is missing from probabilities", *wire.Choice)
 		}
-		if err := validateProbabilities(answer.Probabilities); err != nil {
+		if err := validateProbabilities(wire.Probabilities); err != nil {
 			return nil, err
 		}
-		return &answer, nil
+		return &ChoiceAnswer{Type: wire.Type, Choice: *wire.Choice, Confidence: *wire.Confidence, Probabilities: wire.Probabilities}, nil
 	case "score":
-		var answer ScoreAnswer
-		if err := decodeRequiredAnswer(data, &answer, "score", "confidence", "legend", "probabilities"); err != nil {
-			return nil, err
+		if wire.Score == nil {
+			return nil, fmt.Errorf("answer missing required field score")
 		}
-		if !finite(answer.Score) {
+		if wire.Confidence == nil {
+			return nil, fmt.Errorf("answer missing required field confidence")
+		}
+		if wire.Legend == nil {
+			return nil, fmt.Errorf("answer missing required field legend")
+		}
+		if wire.Probabilities == nil {
+			return nil, fmt.Errorf("answer missing required field probabilities")
+		}
+		if !finite(*wire.Score) {
 			return nil, fmt.Errorf("score must be finite")
 		}
-		if !unitInterval(answer.Confidence) {
+		if !unitInterval(*wire.Confidence) {
 			return nil, fmt.Errorf("confidence must be between 0 and 1")
 		}
-		minimum, maximum, err := validateScoreLevels(answer.Legend, answer.Probabilities)
+		minimum, maximum, err := validateScoreLevels(wire.Legend, wire.Probabilities)
 		if err != nil {
 			return nil, err
 		}
-		if answer.Score < minimum || answer.Score > maximum {
+		if *wire.Score < minimum || *wire.Score > maximum {
 			return nil, fmt.Errorf("score must be between %v and %v", minimum, maximum)
 		}
-		if err := validateProbabilities(answer.Probabilities); err != nil {
+		if err := validateProbabilities(wire.Probabilities); err != nil {
 			return nil, err
 		}
-		return &answer, nil
+		return &ScoreAnswer{Type: wire.Type, Score: *wire.Score, Confidence: *wire.Confidence, Legend: wire.Legend, Probabilities: wire.Probabilities}, nil
 	default:
-		return &UnknownAnswer{Type: answerType, Raw: bytes.Clone(data)}, nil
+		return &UnknownAnswer{Type: wire.Type, Raw: bytes.Clone(data)}, nil
 	}
-}
-
-func decodeRequiredAnswer(data []byte, destination any, valueField string, requiredFields ...string) error {
-	var raw map[string]json.RawMessage
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return err
-	}
-	fields := append([]string{valueField}, requiredFields...)
-	for _, field := range fields {
-		if missingJSONField(raw[field]) {
-			return fmt.Errorf("answer missing required field %s", field)
-		}
-	}
-	if err := json.Unmarshal(data, destination); err != nil {
-		return err
-	}
-	return nil
 }
 
 func missingJSONField(raw json.RawMessage) bool {
