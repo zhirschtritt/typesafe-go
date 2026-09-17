@@ -1,4 +1,6 @@
 # TypeSafe Go SDK
+[![Go Reference](https://pkg.go.dev/badge/github.com/zhirschtritt/typesafe-go.svg)](https://pkg.go.dev/github.com/zhirschtritt/typesafe-go)
+
 An **unofficial community SDK** for the [TypeSafe](https://www.typesafe.ai/) v1 API. It provides a small, dependency-free Go client for System One and model discovery.
 
 > This project is not affiliated with or endorsed by TypeSafe.
