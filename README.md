@@ -13,42 +13,51 @@ Requires Go 1.23 or later.
 
 ## Quickstart
 
-Set an API key, then ask related questions in one System One request:
+Set `TYPESAFE_API_KEY`, then ask related questions in one System One request:
 
 ```go
-client, err := typesafe.NewClient()
-if err != nil {
-	log.Fatal(err)
-}
+package main
 
-response, err := client.SystemOne(ctx,
-	map[string]any{
-		"draft": "Ship the migration on Friday.",
-		"author": "Avery",
-	},
-	map[string]typesafe.Question{
-		"safe": typesafe.Noul("Decide whether the draft is safe to send.", nil),
-		"audience": typesafe.Choice(
-			"Identify the best audience.",
-			map[string]typesafe.Entry{
+import (
+	"context"
+	"fmt"
+	"log"
+
+	typesafe "github.com/zhirschtritt/typesafe-go"
+)
+
+func main() {
+	client, err := typesafe.NewClient()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	response, err := client.SystemOne(context.Background(),
+		map[string]any{
+			"draft": "Ship the migration on Friday.",
+			"author": "Avery",
+		},
+		map[string]typesafe.Question{
+			"safe": typesafe.Noul("Is the draft safe to send?", nil),
+			"audience": typesafe.Choice("Which audience should receive the draft?", map[string]typesafe.Entry{
 				"engineering": "Technical stakeholders",
 				"customers":   "External customers",
-			},
-		),
-		"confidence": typesafe.Score(
-			"Score confidence that Friday is achievable.",
-			"Low confidence", "High confidence",
-		),
-	},
-)
-if err != nil {
-	log.Fatal(err)
-}
+			}),
+			"feasibility": typesafe.Score("How feasible is shipping the migration on Friday?",
+				"Not feasible", "At risk", "Feasible",
+			),
+		},
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
 
-safe, _ := response.NoulAnswer("safe")
-audience, _ := response.ChoiceAnswer("audience")
-confidence, _ := response.ScoreAnswer("confidence")
-fmt.Println(safe, audience, confidence, response.RequestID)
+	safe, _ := response.NoulAnswer("safe")
+	audience, _ := response.ChoiceAnswer("audience")
+	feasibility, _ := response.ScoreAnswer("feasibility")
+	fmt.Printf("safe=%.2f audience=%s feasibility=%.2f request_id=%s\n",
+		safe.Noul, audience.Choice, feasibility.Score, response.RequestID)
+}
 ```
 
 `SystemOne` batches all questions over the same state. Keep shared state and instructions focused. Put common context in `state`; reserve each question for its distinct judgment.
