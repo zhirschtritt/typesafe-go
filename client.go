@@ -409,7 +409,7 @@ func normalizedHeaders(source http.Header) http.Header {
 	headers := make(http.Header, len(source))
 	for name, values := range source {
 		canonicalName := http.CanonicalHeaderKey(name)
-		headers[canonicalName] = append(headers[canonicalName], values...)
+		headers[canonicalName] = append([]string(nil), values...)
 	}
 	return headers
 }

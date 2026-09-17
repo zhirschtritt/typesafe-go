@@ -1,4 +1,6 @@
 # TypeSafe Go SDK
+[![Coverage](https://zhirschtritt.github.io/typesafe-go/coverage.svg)](https://github.com/zhirschtritt/typesafe-go/actions/workflows/ci.yml?query=branch%3Amain)
+
 
 An **unofficial community SDK** for the [TypeSafe](https://www.typesafe.ai/) v1 API. It provides a small, dependency-free Go client for System One and model discovery.
 

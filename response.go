@@ -243,10 +243,6 @@ func DecodeAnswer(data []byte) (Answer, error) {
 	}
 }
 
-func missingJSONField(raw json.RawMessage) bool {
-	return len(raw) == 0 || bytes.Equal(raw, []byte("null"))
-}
-
 func finite(value float64) bool { return !math.IsNaN(value) && !math.IsInf(value, 0) }
 
 func unitInterval(value float64) bool { return finite(value) && value >= 0 && value <= 1 }
