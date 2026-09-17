@@ -74,6 +74,17 @@ Transient failures are retried according to the configured retry policy. The cli
 
 Validate questions before sending them: empty or invalid question definitions, invalid state, and invalid client or request options return an error locally.
 
+## Releases
+
+Releases use [Semantic Versioning](https://semver.org/) and are prepared from [Conventional Commits](https://www.conventionalcommits.org/):
+
+- `fix:` produces a patch release.
+- `feat:` produces a minor release.
+- A `!` after the type or scope, such as `feat!:` or `feat(api)!:`, produces a major release. A `BREAKING CHANGE:` footer has the same effect.
+- Other commit types do not produce a release by themselves.
+
+After CI passes on `main`, Release Please opens or updates a release pull request. Merging that pull request creates the `vX.Y.Z` tag and GitHub Release. Release notes are derived from the commits; the repository does not maintain a changelog file. The release pull request also updates `Version`, which is sent in SDK request headers.
+
 ## Forward compatibility
 
 The decoder accepts additive JSON fields. If the service returns an answer type newer than this SDK, it is preserved as `*typesafe.UnknownAnswer` with its raw JSON rather than discarded. Handle it explicitly when consuming evolving API responses.

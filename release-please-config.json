@@ -1,0 +1,19 @@
+{
+  "bootstrap-sha": "ac2f7981fadd01495a9dd2f71ced16a85ff21bbf",
+  "packages": {
+    ".": {
+      "release-type": "simple",
+      "package-name": "typesafe-go",
+      "include-v-in-tag": true,
+      "include-component-in-tag": false,
+      "skip-changelog": true,
+      "version-file": "version.txt",
+      "extra-files": [
+        {
+          "type": "generic",
+          "path": "client.go"
+        }
+      ]
+    }
+  }
+}
