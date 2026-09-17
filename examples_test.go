@@ -42,7 +42,7 @@ func ExampleClient_SystemOne() {
 				"engineering": "Technical stakeholders",
 				"customers":   "External customers",
 			}),
-			"confidence": typesafe.Score("How likely is Friday?", "Low", "High"),
+			"confidence": typesafe.Score("How likely is Friday?", "Low", "Medium", "High"),
 		},
 	)
 	if err != nil {

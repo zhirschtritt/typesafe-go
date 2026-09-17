@@ -74,6 +74,7 @@ type Response struct {
 	Answers   map[string]Answer `json:"answers"`
 	Usage     Usage             `json:"usage"`
 	RequestID string            `json:"-"`
+	raw       []byte
 }
 
 // NoulAnswer returns the Noul answer with id, if it is a Noul answer.
@@ -158,6 +159,7 @@ func (r *Response) UnmarshalJSON(data []byte) error {
 		answers[id] = answer
 	}
 	r.Answers = answers
+	r.raw = bytes.Clone(data)
 	return nil
 }
 
@@ -295,6 +297,102 @@ func validateScoreLevels(legend map[string]Entry, probabilities map[string]float
 		}
 	}
 	return minimum, maximum, nil
+}
+
+const responseRoundingError = 0.005
+
+func validateResponseForQuestions(response *Response, questions map[string]Question) error {
+	if len(response.Answers) != len(questions) {
+		return fmt.Errorf("expected exactly one answer for each question")
+	}
+	for id, question := range questions {
+		answer, ok := response.Answers[id]
+		if !ok {
+			return fmt.Errorf("question %q is missing an answer", id)
+		}
+		if _, unknown := answer.(*UnknownAnswer); unknown {
+			continue
+		}
+		if answer.AnswerType() != question.questionType() {
+			return fmt.Errorf("question %q returned answer type %q, want %q", id, answer.AnswerType(), question.questionType())
+		}
+		switch typedQuestion := question.(type) {
+		case ChoiceQuestion:
+			if err := validateChoiceAnswerForQuestion(response.Answers[id].(*ChoiceAnswer), typedQuestion); err != nil {
+				return fmt.Errorf("question %q: %w", id, err)
+			}
+		case *ChoiceQuestion:
+			if err := validateChoiceAnswerForQuestion(response.Answers[id].(*ChoiceAnswer), *typedQuestion); err != nil {
+				return fmt.Errorf("question %q: %w", id, err)
+			}
+		case ScoreQuestion:
+			if err := validateScoreAnswerForQuestion(response.Answers[id].(*ScoreAnswer), typedQuestion); err != nil {
+				return fmt.Errorf("question %q: %w", id, err)
+			}
+		case *ScoreQuestion:
+			if err := validateScoreAnswerForQuestion(response.Answers[id].(*ScoreAnswer), *typedQuestion); err != nil {
+				return fmt.Errorf("question %q: %w", id, err)
+			}
+		}
+	}
+	return nil
+}
+
+func validateChoiceAnswerForQuestion(answer *ChoiceAnswer, question ChoiceQuestion) error {
+	if len(answer.Probabilities) != len(question.Criteria) {
+		return fmt.Errorf("probabilities must contain exactly the requested options")
+	}
+	selected, ok := answer.Probabilities[answer.Choice]
+	if !ok {
+		return fmt.Errorf("choice %q is not a requested option", answer.Choice)
+	}
+	for option, probability := range answer.Probabilities {
+		if _, ok := question.Criteria[option]; !ok {
+			return fmt.Errorf("probability contains unknown option %q", option)
+		}
+		if probability > selected+1e-9 {
+			return fmt.Errorf("choice %q is not a highest-probability option", answer.Choice)
+		}
+	}
+	return validateProbabilitySum(answer.Probabilities)
+}
+
+func validateScoreAnswerForQuestion(answer *ScoreAnswer, question ScoreQuestion) error {
+	if len(answer.Probabilities) != len(question.Criteria) || len(answer.Legend) != len(question.Criteria) {
+		return fmt.Errorf("legend and probabilities must contain exactly the requested levels")
+	}
+	mean := 0.0
+	meanRoundingError := responseRoundingError
+	for level := range question.Criteria {
+		key := strconv.Itoa(level)
+		probability, ok := answer.Probabilities[key]
+		if !ok {
+			return fmt.Errorf("probabilities are missing level %q", key)
+		}
+		if _, ok := answer.Legend[key]; !ok {
+			return fmt.Errorf("legend is missing level %q", key)
+		}
+		mean += float64(level) * probability
+		meanRoundingError += float64(level) * responseRoundingError
+	}
+	if answer.Score < 0 || answer.Score > float64(len(question.Criteria)-1) {
+		return fmt.Errorf("score must be between 0 and %d", len(question.Criteria)-1)
+	}
+	if math.Abs(answer.Score-mean) > meanRoundingError+1e-9 {
+		return fmt.Errorf("score must equal the probability-weighted mean within response rounding precision")
+	}
+	return validateProbabilitySum(answer.Probabilities)
+}
+
+func validateProbabilitySum(probabilities map[string]float64) error {
+	sum := 0.0
+	for _, probability := range probabilities {
+		sum += probability
+	}
+	if math.Abs(sum-1) > float64(len(probabilities))*responseRoundingError+1e-9 {
+		return fmt.Errorf("probabilities must sum to 1 within response rounding precision")
+	}
+	return nil
 }
 
 // Model describes a model available to the authenticated account.
