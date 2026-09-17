@@ -1,0 +1,6 @@
+min_version: 2.1.14
+
+commit-msg:
+  jobs:
+    - name: conventional commit
+      run: scripts/check-commit-message.sh {1}
