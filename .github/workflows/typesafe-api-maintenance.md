@@ -3,6 +3,7 @@ description: Keep the Go SDK aligned with TypeSafe's public API and official SDK
 intent: Detect concrete TypeSafe API additions or compatibility gaps and propose the smallest verified SDK update for maintainer review.
 engine:
   id: copilot
+  copilot-sdk: true
   model: gpt-5-mini
 max-ai-credits: 100
 max-turns: 60
