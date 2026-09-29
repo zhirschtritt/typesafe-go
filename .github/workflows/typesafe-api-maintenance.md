@@ -1,6 +1,9 @@
 ---
 description: Keep the Go SDK aligned with TypeSafe's public API and official SDKs.
 intent: Detect concrete TypeSafe API additions or compatibility gaps and propose the smallest verified SDK update for maintainer review.
+engine:
+  id: copilot
+  model: gpt-5-mini
 max-ai-credits: 100
 max-turns: 60
 on:
@@ -26,6 +29,11 @@ network:
     - go
     - api.typesafe.ai
     - docs.typesafe.ai
+jobs:
+  detection:
+    if: needs.agent.result == 'success'
+  safe_outputs:
+    if: needs.agent.result == 'success'
 
 safe-outputs:
   create-pull-request:
